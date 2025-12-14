@@ -5,7 +5,7 @@ from src.service import FluDashBoardService
 
 
 
-def test_stress_index_calculation:
+def test_stress_index_calculation():
     """
     User Story 3: test merging API with CSV of capacity
     Scenario: Alabama has 10 deaths, 50 ICU beds
@@ -14,12 +14,14 @@ def test_stress_index_calculation:
     mock_repo = MagicMock()
     mock_repo.fetch_data.return_value = [
         {
-            "state": "AL",
+            "state": "Alabama",
             "flu_deaths": 10, 
             "date" : "2024-04-21"
         }]
+    
+    service = FluDashBoardService(repository=mock_repo)
 
-    service.load_static_data = MagicMock(return_value=pd.DataFrame({
+    service.load_hospital_data = MagicMock(return_value=pd.DataFrame({
         'State': ['Alabama'],
         'Abbreviation': ['AL'],
         'Total_Hospital_Beds': [1000],
@@ -31,6 +33,6 @@ def test_stress_index_calculation:
 
     assert not result.empty
     row = result.iloc[0]
-    assert row['State'] == 'Alabama'
+    assert row['state'] == 'Alabama'
     assert row ['Stress_Index'] == 20.0
     mock_repo.fetch_data.assert_called_once()
