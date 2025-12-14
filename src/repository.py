@@ -18,8 +18,8 @@ class CDCRepository(IDataRepository):
     def fetch_data(self):
         params = {
             "$limit" : 2000, 
-            "$order" : "week_ending_date DESC"
-            "group" : "By Week"
+            "$order" : "week_ending_date DESC",
+            "group" : "By Week",
             "age_group" : "All Ages"
         }
 
