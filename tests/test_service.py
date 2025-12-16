@@ -1,7 +1,8 @@
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from src.service import FluDashBoardService
+from src.database import DatabaseAdapter
 
 
 
@@ -19,7 +20,9 @@ def test_stress_index_calculation():
             "date" : "2024-04-21"
         }]
     
-    service = FluDashBoardService(repository=mock_repo)
+    mock_db = MagicMock(spec = DatabaseAdapter)
+    
+    service = FluDashBoardService(repository=mock_repo, db_adapter = mock_db)
 
     service.load_hospital_data = MagicMock(return_value=pd.DataFrame({
         'State': ['Alabama'],
@@ -31,6 +34,7 @@ def test_stress_index_calculation():
 
     result = service.get_dashboard_data()
 
+    mock_db.save_data.assert_called_once()
     assert not result.empty
     row = result.iloc[0]
     assert row['state'] == 'Alabama'
