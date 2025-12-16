@@ -9,24 +9,27 @@ TEST_TABLE = 'dashboard_data'
 
 @pytest.fixture
 def setup_teardown_db():
+
     # fixture to set up and tear down the database
+    conn = sqlite3.connect(TEST_DB)
 
     # create database object
-    db_adapter = DatabaseAdapter(dp_path = TEST_DB, table_name = TEST_TABLE)
-    db_adapter.drop_table_if_exists()  # ensure clean state
+    db_adapter = DatabaseAdapter(db_path = conn, table_name = TEST_TABLE)
 
     #yield gives the object to the test function
-    yield db_adapter
+    yield conn
+
+    conn.close()
 
 
-    # teardown after test (cleanup)
-    db_adapter.drop_table_if_exists()
 
 def test_save_and_load_data_integrity(setup_teardown_db):
     """US4 - test data can be saved to the DB and loaded correctly"""
 
-    # receive the db adapter from the fixture
-    db_adapter = setup_teardown_db
+    conn = setup_teardown_db
+
+    db_adapter = DatabaseAdapter(db_path = conn, table_name = TEST_TABLE)
+
 
     # create sample data 
     data_to_save = pd.DataFrame({
