@@ -91,3 +91,27 @@ class DatabaseAdapter:
         finally:
             if not isinstance(self.db_path, sqlite3Connection()):
                 conn.close()
+
+
+    def get_data_by_state(self, state_name:str) -> pd.DataFrame:
+        """get data for a specific state from the DB using parameterised query
+        to prevent SQL injection"""
+
+        conn = self._get_connection()
+
+        try:
+            query = f"SELECT * FROM {self.table_name} WHERE stata = ?"
+            logger.info (f"Executing parametrised query for state: {state_name}")
+
+            df = pd.read_sql_query(query, conn, params=(state_name,))
+
+            logger.info(f"Retrieved {len(df)} records for state {state_name}")
+            return df
+        
+        except Exception as e:
+            logger.error(f"Error retrieving data for state {state_name}: {e}")
+            return pd.DataFrame()
+        
+        finally:
+            if not isinstance (self.db_path, sqlite3.Connection):
+                conn.close()
