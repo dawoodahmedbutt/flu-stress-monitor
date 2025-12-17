@@ -1,9 +1,5 @@
 import pytest
 from unittest.mock import MagicMock, patch
-import sys
-
-# We import the main function from app
-# This will fail initially because app.py doesn't exist yet
 from app import main
 
 @patch('app.render_dashboard')      # Mock the dashboard view
