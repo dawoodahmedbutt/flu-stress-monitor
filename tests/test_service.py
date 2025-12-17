@@ -5,7 +5,6 @@ from src.service import FluDashBoardService
 from src.database import DatabaseAdapter
 
 
-
 def test_stress_index_calculation():
     """
     User Story 3: test merging API with CSV of capacity
