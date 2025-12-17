@@ -1,14 +1,13 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import pandas as pd
-
 from src.ui.dashboard import render_dashboard
-from src.ui.admin import render_admin_panel  # <--- FIXED IMPORT
+from src.ui.admin import render_admin_panel
 
 @pytest.fixture
 def mock_service():
     service = MagicMock()
-    # Setup a fake dataframe
+    # Setup a fake dataframe so the UI has something to render
     df = pd.DataFrame({
         'state': ['Test State'],
         'flu_deaths': [10],
@@ -25,9 +24,8 @@ def test_dashboard_renders_and_calls_service(mock_st, mock_service):
     """Test that dashboard calls the service to get data"""
     
     # Mock columns (3) AND tabs (2)
-    # Note: We use 2 tabs to match your current dashboard code
     mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
-    mock_st.tabs.return_value = [MagicMock(), MagicMock()] 
+    mock_st.tabs.return_value = [MagicMock(), MagicMock()]
 
     # Act
     render_dashboard(mock_service)
