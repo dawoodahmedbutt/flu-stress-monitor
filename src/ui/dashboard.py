@@ -1,109 +1,104 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from src.log_config import logger  # Integrated Logger
+from src.log_config import logger
 
 class FluDashboardUI:
     def __init__(self):
-       
-        logger.info("FluDashboardUI Initialised - User session started.")
-        st.set_page_config(
-            page_title="National Flu Stress Monitor", 
-            layout="wide",
-            page_icon="🏥"
-        )
+        logger.info("FluDashboardUI Initialized.")
+        st.set_page_config(page_title="National Flu Stress Monitor", layout="wide", page_icon="🏥")
 
     def get_risk_color(self, level):
-        colors = {
-            "Low": "green",
-            "Moderate": "orange",
-            "High": "red",
-            "Critical": "darkred"
-        }
+        colors = {"Low": "green", "Moderate": "orange", "High": "red", "Critical": "darkred"}
         return colors.get(level, "gray")
+    
 
     def render(self, df):
-        logger.info(f"UI rendering started for {len(df)} records.")
-        
         try:
-            st.title("🏥 National Flu Hospitalisation Stress Monitor")
-            
-            # Methodology citation (Excellent for your report)
-            st.markdown("""
-                ---
-                ### **Methodology & Burden Estimation**
-                This dashboard utilizes a **1:15 Mortality-to-Admission ratio** derived from the **UKHSA 2024-25 Annual Epidemiological Report**. 
-                Because mortality is a lagging indicator, this multiplier estimates total ICU/Hospital burden:
-                - **Stress Index** = (Estimated Admissions / ICU Beds) × 100.
-                - **Risk Tiers** are mapped to **CDC IRAT** impact categories.
-                ---
-            """)
+            #  Data prep
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'])
 
             if df.empty:
-                st.warning("⚠️ No data available. Please trigger a data fetch in the Admin panel.")
-                logger.warning("Render attempted with empty DataFrame.")
+                st.warning("⚠️ No data available. Please go to the Admin Panel and Click 'Trigger Data Sync'.")
+                return
+
+            min_avail_date = df['date'].min()
+            max_avail_date = df['date'].max()
+
+            # filters
+            st.sidebar.header("🔍 Filter View")
+            
+            all_states = sorted(df['state'].unique())
+            default_states = ["California", "Texas", "New York"] if "California" in all_states else all_states[:3]
+            selected_states = st.sidebar.multiselect("Select States", options=all_states, default=default_states)
+
+            date_range = st.sidebar.slider(
+                "Select Date Range", 
+                min_value=min_avail_date.date(), 
+                max_value=max_avail_date.date(), 
+                value=(min_avail_date.date(), max_avail_date.date())
+            )
+            
+            # Apply Filters
+            filtered_df = df[
+                (df['state'].isin(selected_states)) & 
+                (df['date'].dt.date >= date_range[0]) & 
+                (df['date'].dt.date <= date_range[1])
+            ]
+
+            st.title("🏥 National Flu Hospitalization Stress Monitor")
+            st.markdown("---")
+
+            if filtered_df.empty:
+                st.warning("No data matches the selected filters.")
                 return
 
             # KPIs
-            latest_date = df['date'].max()
-            summary_df = df[df['date'] == latest_date]
-
             col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Latest Update", latest_date.strftime('%Y-%m-%d'))
-            with col2:
-                st.metric("Total Deaths", int(summary_df['flu_deaths'].sum()))
-            with col3:
-                avg_stress = round(summary_df['Stress_Index'].mean(), 1)
-                st.metric("Avg. National Stress", f"{avg_stress}%")
-            with col4:
-                critical_count = len(summary_df[summary_df['Risk_Level'] == 'Critical'])
-                st.metric("States in CRITICAL", critical_count)
+            
+            # Reporting Period
+            col1.metric("Reporting Period Ends", date_range[1].strftime('%d-%m-%y'))
+            
+            # Cumulative Deaths 
+            total_period_deaths = int(filtered_df['flu_deaths'].sum())
+            col2.metric("Cumulative Deaths", f"{total_period_deaths:,}")
+            
+            #  Peak Stress 
+            peak_stress = filtered_df['Stress_Index'].max()
+            col3.metric("Peak Stress Index", f"{round(peak_stress, 1)}%" if pd.notna(peak_stress) else "0.0%")
+            
+            # Critical Instances
+            critical_count = len(filtered_df[filtered_df['Risk_Level'] == 'Critical'])
+            col4.metric("Weeks at Critical Risk", critical_count)
 
             st.divider()
 
-            # Visualisations
-            tab1, tab2, tab3 = st.tabs(["📈 Trend Analysis", "🗺️ State Risk Table", "📄 Raw Historical Data"])
+            # tabs
+            tab1, tab2, tab3 = st.tabs(["📈 Trend Analysis", "🗺️ Risk Table", "⚙️ Admin Info"])
 
             with tab1:
-                st.subheader("Historical Stress Index Trends")
-                fig = px.line(
-                    df, 
-                    x='date', 
-                    y='Stress_Index', 
-                    color='state',
-                    title="Estimated ICU Occupancy % Over Time",
-                    labels={"Stress_Index": "Estimated Occupancy (%)", "date": "Report Date"},
-                    markers=True
-                )
-                # Crisis Threshold Line
-                fig.add_hline(y=70, line_dash="dot", line_color="red", 
-                             annotation_text="Crisis Threshold (70%)", 
-                             annotation_position="top left")
-                
-                st.plotly_chart(fig, use_container_width=True)
-
+                st.subheader(f"ICU Stress Trends ({date_range[0].strftime('%d-%m-%y')} to {date_range[1].strftime('%d-%m-%y')})")
+                if not filtered_df.empty:
+                    chart_data = filtered_df.sort_values(by='date')
+                    fig = px.line(chart_data, x='date', y='Stress_Index', color='state', markers=True)
+                    fig.add_hline(y=70, line_dash="dot", line_color="red", annotation_text="Crisis Threshold")
+                    st.plotly_chart(fig, use_container_width=True)
 
             with tab2:
-                st.subheader("Current State Status")
+                st.subheader("Detailed Data Log")
+                display_df = filtered_df[['state', 'date', 'flu_deaths', 'Stress_Index', 'Risk_Level']].copy()
+                display_df['date'] = display_df['date'].dt.strftime('%d-%m-%y')
+                display_df = display_df.sort_values(by='date', ascending=False)
                 
-                def apply_risk_styles(val):
-                    color = self.get_risk_color(val)
-                    return f'background-color: {color}; color: white; font-weight: bold;'
-
-                status_cols = ['state', 'flu_deaths', 'ICU_Beds', 'Stress_Index', 'Risk_Level']
-                display_df = summary_df[status_cols].sort_values(by='Stress_Index', ascending=False)
+                def color_risk(val):
+                    return f'background-color: {self.get_risk_color(val)}; color: white; font-weight: bold;'
                 
-                st.table(display_df.style.applymap(apply_risk_styles, subset=['Risk_Level']))
-
+                st.dataframe(display_df.style.applymap(color_risk, subset=['Risk_Level']))
 
             with tab3:
-                st.subheader("Full Dataset")
-                st.dataframe(df.sort_values(by='date', ascending=False), use_container_width=True)
-
-            logger.info("UI rendering completed successfully.")
-
+                st.info("Please use the 'Admin Panel' in the sidebar for CRUD operations.")
 
         except Exception as e:
-            logger.error(f"UI Rendering Failure: {e}", exc_info=True)
-            st.error("An error occurred while displaying the dashboard. Please check the system logs.")
+            logger.error(f"UI Error: {e}")
+            st.error(f"An error occurred: {e}")

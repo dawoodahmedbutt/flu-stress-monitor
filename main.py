@@ -5,7 +5,7 @@ from src.database import DatabaseAdapter
 from src.service import FluDashBoardService
 from src.log_config import logger
 
-API_DATA_SOURCE = "https://data.cdc.gov/resource/ynw2-4viq.json"
+API_DATA_SOURCE = "https://data.cdc.gov/resource/r8kw-7aab.json"
 DATABASE_PATH = 'health_dashboard.db'
 DATABASE_TABLE = 'dashboard_data'
 

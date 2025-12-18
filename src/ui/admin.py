@@ -4,60 +4,70 @@ from src.log_config import logger
 
 def render_admin_panel(service):
     """
-    Render the Admin interface for CRUD operations on Hospital Data.
+    Unified Admin Interface: Sync Data AND Edit Capacity (CRUD).
     """
-    st.header("🛠️ Admin Panel: Hospital Capacity Management")
-    st.info("Update the ICU or Hospital Bed capacity for a specific state.")
+    st.header("⚙️ Administrative Controls")
 
-    # Load data to get the list of states
-    df = service.get_dashboard_data()
+    # Data sync
+    st.subheader("🔄 Data Synchronization")
+    st.info("Pull latest 2024 mortality data from CDC API.")
     
+    if st.button("Trigger Data Sync"):
+        with st.spinner("Fetching and processing data..."):
+            df = service.get_dashboard_data()
+            if not df.empty:
+                st.success(f"✅ Sync Complete! {len(df)} records processed.")
+                logger.info("Manual data sync triggered successfully.")
+            else:
+                st.error("Data sync failed. Check logs.")
+
+    st.divider()
+
+    # CRUD
+    st.subheader("🏥 Hospital Capacity Management (CRUD)")
+    st.info("Manually update hospital bed capacity for a specific state.")
+
+    # Load Data for Selection
+    df = service.get_dashboard_data()
     if df.empty:
-        st.error("Could not load data for editing.")
+        st.warning("Sync data first to enable editing.")
         return
 
-    # choose state to edit
+    # Select State
     all_states = sorted(df['state'].unique())
     selected_state = st.selectbox("Select State to Update", all_states)
 
-    # Get current values for chosen state
-    current_row = df[df['state'] == selected_state].iloc[0]
-    current_beds = int(current_row['Total_Hospital_Beds'])
-    current_icu = int(current_row['ICU_Beds'])
+    # Get Current Values
+    state_data = df[df['state'] == selected_state].iloc[0]
+    current_beds = int(state_data.get('Total_Hospital_Beds', 0))
+    current_icu = int(state_data.get('ICU_Beds', 0))
 
-    # edit
-    with st.form(key='edit_hospital_form'):
+    # Edit Form
+    with st.form(key='capacity_form'):
         col1, col2 = st.columns(2)
-        new_beds = col1.number_input("Total Hospital Beds", min_value=0, value=current_beds)
+        new_beds = col1.number_input("Total Beds", min_value=0, value=current_beds)
         new_icu = col2.number_input("ICU Beds", min_value=0, value=current_icu)
         
-        submit_button = st.form_submit_button(label="💾 Update Records")
+        submit = st.form_submit_button("💾 Save Changes to Database")
 
-    # submission
-    if submit_button:
+    # Handle Submission
+    if submit:
         try:
-            # Load the raw CSV to update it permanently
+            # Update CSV 
             csv_path = '01_Data/us_states_capacity.csv'
             df_csv = pd.read_csv(csv_path)
+            if 'State' in df_csv.columns: df_csv.rename(columns={'State': 'state'}, inplace=True)
             
-            # Standardise column name if needed
-            if 'State' in df_csv.columns:
-                df_csv.rename(columns={'State': 'state'}, inplace=True)
-            
-            # Update data
             mask = df_csv['state'] == selected_state
             df_csv.loc[mask, 'Total_Hospital_Beds'] = new_beds
             df_csv.loc[mask, 'ICU_Beds'] = new_icu
-            
-            # Save  to CSV
             df_csv.to_csv(csv_path, index=False)
             
-            logger.info(f"User updated capacity for {selected_state}: Beds={new_beds}, ICU={new_icu}")
-            st.success(f"✅ Successfully updated records for {selected_state}!")
+            # Trigger Logic Refresh (Update DB immediately)
+            service.get_dashboard_data()
             
-            # Force a cache clear so dashboard sees new data immediately
-            st.cache_data.clear()
+            st.success(f"Updated {selected_state}: Beds={new_beds}, ICU={new_icu}")
+            logger.info(f"CRUD Update: {selected_state} updated by admin.")
             
         except Exception as e:
-            st.error(f"Failed to update records: {e}")
-            logger.error(f"Admin update failed: {e}")
+            st.error(f"Update failed: {e}")
