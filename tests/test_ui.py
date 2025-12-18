@@ -1,6 +1,15 @@
 import pytest
 import pandas as pd
 from src.ui.dashboard import FluDashboardUI
+import logging
+
+
+def test_ui_initialisation_logs_startup(caplog):
+    from src.ui.dashboard import FluDashboardUI
+    with caplog .at_level("INFO"):
+       ui = FluDashboardUI()
+    assert "User session started" in caplog.text
+   
 
 def test_ui_renders_risk_indicators():
     """
@@ -19,5 +28,5 @@ def test_ui_renders_risk_indicators():
 
     ui = FluDashboardUI()
 
-    assert ui.get_risk_color('Critical') == 'red'
+    assert ui.get_risk_color('Critical') == 'darkred'
     assert ui.get_risk_color('Low') == 'green'

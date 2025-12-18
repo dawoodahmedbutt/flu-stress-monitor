@@ -11,7 +11,7 @@ class IDataRepository(ABC):
         pass
 
 
-class CDCRepository(IDataRepository):
+class FluDataRepository(IDataRepository):
     """Concrete implementation for fetching flu data from CDC API"""
     def __init__(self, api_url:str):
         self.api_url = api_url
