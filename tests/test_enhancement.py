@@ -4,46 +4,54 @@ from unittest.mock import MagicMock
 from src.service import FluDashBoardService
 from src.database import DatabaseAdapter
 
-def test_service_keeps_history_and_calculates_risk():
+def test_service_logic_with_ukhsa_and_cdc_thresholds():
     """
     Enhancement Test:
-    1. Should return data for MULTIPLE dates (History), not just the latest.
-    2. Should calculate 'Risk_Level' based on Stress Index.
+    Validates that:
+    1. 1:15 Multiplier works correctly.
+    2. Thresholds trigger the correct CDC/Critical labels.
+    - 0 deaths -> 0% Stress -> Low
+    - 1 death  -> 15% Stress -> Moderate (Threshold 10-40)
+    - 3 deaths -> 45% Stress -> High (Threshold 40-70)
+    - 6 deaths -> 90% Stress -> Critical (Threshold > 70)
+    using UKHSA data with 1:15 deaths to ICU bed ratio - ref and further explanation in the report
     """
-    # Mock API with 2 weeks of data
+    # Mock Repository with specific mortality counts
     mock_repo = MagicMock()
     mock_repo.fetch_data.return_value = [
-        {"state": "Alabama", "flu_deaths": 10, "date": "2024-01-01"}, # Week 1
-        {"state": "Alabama", "flu_deaths": 50, "date": "2024-01-08"}  # Week 2 (Higher deaths)
+        {"state": "Alabama", "flu_deaths": 0, "date": "2024-01-01"}, 
+        {"state": "Alabama", "flu_deaths": 1, "date": "2024-01-08"}, 
+        {"state": "Alabama", "flu_deaths": 3, "date": "2024-01-15"}, 
+        {"state": "Alabama", "flu_deaths": 6, "date": "2024-01-22"}  
     ]
     
-    # Mock Database
+    # Mock DB
     mock_db = MagicMock(spec=DatabaseAdapter)
     
+    # Initialise Service
     service = FluDashBoardService(repository=mock_repo, db_adapter=mock_db)
 
-    # Mock CSV for hospital capacity
-    # Note: Capacity is static, but merged with time-series data
+    # Mock Capacity (100 ICU beds for easy math)
     service.load_hospital_data = MagicMock(return_value=pd.DataFrame({
         'state': ['Alabama'],
-        'Total_Hospital_Beds': [100],
-        'ICU_Beds': [50] 
+        'Total_Hospital_Beds': [500],
+        'ICU_Beds': [100]
     }))
 
     # Act
     df = service.get_dashboard_data()
 
-    # Assert 1: History Check
-    # sent 2 weeks of data, expect 2 rows back. 
-    # (Current logic might drop one or fail to handle dates)
-    assert len(df) == 2, "Service should keep history, but it returned fewer rows."
-
-    # Assert 2: Feature Engineering Check
-    # expect a new column 'Risk_Level'
-    assert 'Risk_Level' in df.columns, "Risk_Level column is missing."
+    # Assertions
+    assert len(df) == 4
     
-    # Check logic: 
-    # Week 1: 10 deaths / 50 beds = 20% (Medium/High?). Logic yet to be defined
-    # Week 2: 50 deaths / 50 beds = 100% (Critical/High)
-    # check the column exists and has values 
-    assert not df['Risk_Level'].isnull().any()
+    # Verify Low (0 * 15 / 100 = 0%)
+    assert df[df['flu_deaths'] == 0]['Risk_Level'].iloc[0] == "Low"
+    
+    # Verify Moderate (1 * 15 / 100 = 15%)
+    assert df[df['flu_deaths'] == 1]['Risk_Level'].iloc[0] == "Moderate"
+
+    # Verify High (3 * 15 / 100 = 45%)
+    assert df[df['flu_deaths'] == 3]['Risk_Level'].iloc[0] == "High"
+
+    # Verify Critical (6 * 15 / 100 = 90%)
+    assert df[df['flu_deaths'] == 6]['Risk_Level'].iloc[0] == "Critical"
