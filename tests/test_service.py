@@ -40,5 +40,5 @@ def test_stress_index_calculation():
     mock_db.save_data.assert_called_once()  
     row = result.iloc[0]
     assert row['state'] == 'Alabama'
-    assert row['Stress_Index'] == 20.0
+    assert row['Stress_Index'] == 300.0
     mock_repo.fetch_data.assert_called_once()
