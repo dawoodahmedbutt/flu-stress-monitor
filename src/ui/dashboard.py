@@ -5,7 +5,7 @@ from src.log_config import logger
 
 class FluDashboardUI:
     def __init__(self):
-        logger.info("FluDashboardUI Initialized.")
+        logger.info("User session started.")
         st.set_page_config(page_title="National Flu Stress Monitor", layout="wide", page_icon="🏥")
 
     def get_risk_color(self, level):
@@ -47,7 +47,7 @@ class FluDashboardUI:
                 (df['date'].dt.date <= date_range[1])
             ]
 
-            st.title("🏥 National Flu Hospitalization Stress Monitor")
+            st.title("🏥 National Flu Hospitalisation Stress Monitor")
             st.markdown("---")
 
             if filtered_df.empty:
