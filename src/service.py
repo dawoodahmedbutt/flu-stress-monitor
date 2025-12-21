@@ -38,6 +38,29 @@ class FluDashBoardService:
             
             # Convert to DataFrame
             df_api = pd.DataFrame(api_data)
+
+
+            # Map Deaths: 'influenza_deaths' -> 'flu_deaths'
+            if 'influenza_deaths' in df_api.columns:
+                df_api.rename(columns={'influenza_deaths': 'flu_deaths'}, inplace=True)
+            elif 'provisional_influenza_deaths' in df_api.columns:
+                df_api.rename(columns={'provisional_influenza_deaths': 'flu_deaths'}, inplace=True)
+                
+            # Map Date: 'end_date' -> 'date'
+            if 'end_date' in df_api.columns:
+                df_api.rename(columns={'end_date': 'date'}, inplace=True)
+            elif 'week_ending_date' in df_api.columns:
+                df_api.rename(columns={'week_ending_date': 'date'}, inplace=True)
+
+            # Clean Missing/Empty Data
+            if 'flu_deaths' not in df_api.columns:
+                 df_api['flu_deaths'] = 0
+            if 'date' not in df_api.columns:
+                 df_api['date'] = "Unknown"
+
+            # Type Conversion 
+            df_api['flu_deaths'] = pd.to_numeric(df_api['flu_deaths'], errors='coerce').fillna(0)
+        
             
             # Load static Hospital Capacity CSV
             df_capacity = self.load_hospital_data()
