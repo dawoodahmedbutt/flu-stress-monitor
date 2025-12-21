@@ -21,60 +21,59 @@ class FluDashBoardService:
             logger.error(f"Critical: Failed to load hospital CSV: {e}")
             return pd.DataFrame()
 
+
+
     def get_dashboard_data(self):
-        """Main pipeline: Fetch, Filter, Normalize, Merge."""
+        """
+        Main ETL Method:
+        1. Tries to fetch live data from API.
+        2. If successful: Merges with CSV, Calculates Stress, Saves to DB.
+        3. If API fails (returns empty): LOADS FROM LOCAL DB instead.
+        """
+        # Attempt to fetch live data
         api_data = self.repository.fetch_data()
-        if not api_data: 
-            return pd.DataFrame()
-
-        df_api = pd.DataFrame(api_data)
         
-       
-        if 'group' in df_api.columns:
-            df_api = df_api[df_api['group'] == 'By Week']
-
-        # Filter out national totals 
-        if 'state' in df_api.columns:
-            df_api = df_api[df_api['state'] != 'United States']
-
-    
-        column_map = {
-            'state': 'state',                
-            'week_ending_date': 'date',      
-            'influenza_deaths': 'flu_deaths' 
-        }
-        df_api.rename(columns=column_map, inplace=True)
-        
-        if 'state' not in df_api.columns:
-            logger.error(f"Missing 'state' column. Available: {df_api.columns}")
-            return pd.DataFrame()
-
-        # clean and convert
-        if 'flu_deaths' not in df_api.columns:
-            df_api['flu_deaths'] = 0
-        
-        df_api['flu_deaths'] = pd.to_numeric(df_api['flu_deaths'], errors='coerce').fillna(0)
-        
-        if 'date' in df_api.columns:
-            df_api['date'] = pd.to_datetime(df_api['date'])
-
-        hospital_data = self.load_hospital_data()
-        if hospital_data.empty: return pd.DataFrame()
-
-        try:
-            df_merged = pd.merge(df_api, hospital_data, on='state', how='inner')
-        except KeyError:
-            return pd.DataFrame()
-
-        if not df_merged.empty:
-            df_merged['Stress_Index'] = df_merged.apply(self._calculate_stress, axis=1)
-            df_merged['Risk_Level'] = df_merged['Stress_Index'].apply(self._categorize_risk)
+        # Check if API is working
+        if api_data:
+            logger.info(f"API Success: Fetched {len(api_data)} records. Processing...")
             
-            # Save to DB
-            self.db_adapter.save_data(df_merged)
-            return df_merged
-        
-        return df_merged
+            # Convert to DataFrame
+            df_api = pd.DataFrame(api_data)
+            
+            # Load static Hospital Capacity CSV
+            df_capacity = self.load_hospital_data()
+            
+            # Merge Datasets (Left Join on State)
+            merged_df = pd.merge(
+                df_api, 
+                df_capacity, 
+                left_on="state", 
+                right_on="state", 
+                how="inner"
+            )
+            
+            # Calculate Logic
+            merged_df['Stress_Index'] = merged_df.apply(self._calculate_stress, axis=1)
+            merged_df['Risk_Level'] = merged_df['Stress_Index'].apply(self._categorize_risk)
+            
+            # Save to Database (Cache for next time)
+            if not merged_df.empty:
+                self.db_adapter.save_data(merged_df)
+                
+            return merged_df
+
+        # FALLBACK: API failed or returned empty -> Load from Database
+        else:
+            logger.warning("API returned no data. Falling back to Local Database Cache.")
+            cached_df = self.db_adapter.load_data()
+            
+            if cached_df.empty:
+                logger.error("Cache is also empty! System has no data to display.")
+            else:
+                logger.info(f"Loaded {len(cached_df)} records from Local Cache.")
+                
+            return cached_df
+
 
     def _calculate_stress(self, row):
         """Calculates stress using UKHSA 1:15 ratio."""

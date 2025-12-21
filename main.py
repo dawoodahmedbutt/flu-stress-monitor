@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from src.repository import CDCRepository
+from src.repository import FluDataRepository
 from src.database import DatabaseAdapter
 from src.service import FluDashBoardService
 from src.log_config import logger
@@ -13,7 +13,7 @@ def run_etl_process():
     logger.info ("--- Application startup: Running ETL process ---")
 
     try: #initialise dependencies
-        repository = CDCRepository(api_url = API_DATA_SOURCE)
+        repository = FluDataRepository(api_url = API_DATA_SOURCE)
         db_adapter = DatabaseAdapter(db_path = DATABASE_PATH, table_name = DATABASE_TABLE)
         dashboard_service = FluDashBoardService(
             repository = repository, 
