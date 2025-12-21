@@ -22,7 +22,6 @@ class FluDashBoardService:
             return pd.DataFrame()
 
 
-
     def get_dashboard_data(self):
         """
         Main ETL Method:
