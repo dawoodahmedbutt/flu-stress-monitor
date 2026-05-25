@@ -23,5 +23,4 @@ def setup_logging():
 
     return logger
 
-setup_logger = setup_logging()
 logger = setup_logging()

@@ -8,11 +8,13 @@ __pycache__/
 venv/
 .venv/
 env/
+venv*/
 
-# --- Mac OS Junk  ---
+# --- Mac OS Junk ---
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
 
 # --- IDE Settings ---
 .vscode/
@@ -24,3 +26,7 @@ env/
 # --- Logs ---
 *.log
 audit.log
+04_Logs/
+
+# --- Generated database ---
+health_dashboard.db

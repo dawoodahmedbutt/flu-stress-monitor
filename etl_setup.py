@@ -1,3 +1,13 @@
+"""
+One-time data preparation script.
+
+Reads raw HHS hospital utilisation data (01_Data/raw_hospital_data.csv),
+aggregates ICU and total bed counts to state level for the most recent
+reporting week, and writes the cleaned output to 01_Data/us_states_capacity.csv.
+
+The raw source file is not tracked in version control (see .gitignore).
+Download it from the HHS Protect Public Data Hub before running this script.
+"""
 import pandas as pd
 import os
 

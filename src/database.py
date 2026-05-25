@@ -77,7 +77,7 @@ class DatabaseAdapter:
 
     def drop_table_if_exists(self):
 
-        conn = self._get_conncetion()
+        conn = self._get_connection()
 
         try:
             cursor = conn.cursor()
@@ -89,7 +89,7 @@ class DatabaseAdapter:
             logger.error(f"Error dropping table {self.table_name}: {e}")
 
         finally:
-            if not isinstance(self.db_path, sqlite3Connection()):
+            if not isinstance(self.db_path, sqlite3.Connection):
                 conn.close()
 
 
@@ -100,7 +100,7 @@ class DatabaseAdapter:
         conn = self._get_connection()
 
         try:
-            query = f"SELECT * FROM {self.table_name} WHERE stata = ?"
+            query = f"SELECT * FROM {self.table_name} WHERE state = ?"
             logger.info (f"Executing parametrised query for state: {state_name}")
 
             df = pd.read_sql_query(query, conn, params=(state_name,))
